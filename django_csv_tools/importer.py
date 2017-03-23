@@ -1,7 +1,7 @@
 import csv
 from django.db import transaction
 from django import forms
-from io import TextIOWrapper
+
 
 
 class Importer(object):
@@ -101,6 +101,7 @@ class Importer(object):
 
 
     def get_field_value(self, row, mapped_field):
+
         if type(mapped_field) == str:
             return row[mapped_field]
 
@@ -132,6 +133,8 @@ class RelatedImport(object):
 
     def get_object(self, row):
         filter_args = self.get_filter_args(row)
+        if not any(filter_args.values()):
+            return None
         if self.lookup_fn:
             return self.lookup_fn(self.model, filter_args)
         return self.model.objects.get(**filter_args)
