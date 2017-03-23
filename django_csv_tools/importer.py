@@ -125,8 +125,12 @@ class Importer(object):
         if type(mapped_field) == str:
             return row[mapped_field]
 
-        elif type(mapped_field) == list:
-            return row[mapped_field[0]] or mapped_field[1]
+        elif type(mapped_field) == list and len(mapped_field)  == 2:
+            if row[mapped_field[0]] == "":
+                if getattr(mapped_field[1], "__call__"):
+                    return mapped_field[1](row)
+                return mapped_field[1]
+            return row[mapped_field[0]]
 
         elif type(mapped_field) == RelatedImport:
             return mapped_field.get_object(row)
