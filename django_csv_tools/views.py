@@ -4,6 +4,7 @@ from django.views.generic import (
 
 from .forms import BaseCSVImportForm
 from django.shortcuts import redirect
+from io import TextIOWrapper
 
 
 class BaseImportView(FormView):
