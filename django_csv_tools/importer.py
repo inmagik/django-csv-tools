@@ -1,7 +1,7 @@
 import csv
 from django.db import transaction
 from django import forms
-
+from django.db import models
 
 
 class Importer(object):
@@ -75,15 +75,33 @@ class Importer(object):
                     if existing_instances.exists():
                         out["rows_status"]["exiting"].append([i, row, existing_instances])
 
+
+                m2m_attrs = []
+
+                for attr in model_args:
+                    attr_field = getattr(self.model, attr)
+                    if type(attr_field) == models.fields.related_descriptors.ManyToManyDescriptor:
+                        m2m_attrs.append(attr)
+
+                instance_args = { x:model_args[x] for x in model_args if x not in m2m_attrs }
+
+
                 if hint == None:
-                    instance = self.model(**model_args)
+                    instance = self.model(**instance_args)
                     instance.save()
+                    for attr in m2m_attrs:
+                        m2m_manager = getattr(instance, attr)
+                        m2m_manager.add(model_args[attr])
                     out["rows_status"]["new"].append(i)
                 else:
                     instance = self.model.get(pk=hint)
-                    for attr in model_args:
-                        setattr(instance, attr, model_args[attr])
+                    for attr in instance_args:
+                        setattr(instance, attr, instance_args[attr])
                     instance.save()
+                    for attr in m2m_attrs:
+                        m2m_manager = getattr(instance, attr)
+                        m2m_manager.add(model_args[attr])
+
                     out["rows_status"]["updated"].append(i)
 
 
@@ -91,6 +109,8 @@ class Importer(object):
                 out["rows_status"]["errors"].append([i, row, e, True])
                 if commit:
                     raise e
+                else:
+                    transaction.set_rollback(False)
 
         if commit:
             transaction.savepoint_commit(sid)
@@ -104,6 +124,9 @@ class Importer(object):
 
         if type(mapped_field) == str:
             return row[mapped_field]
+
+        elif type(mapped_field) == list:
+            return row[mapped_field[0]] or mapped_field[1]
 
         elif type(mapped_field) == RelatedImport:
             return mapped_field.get_object(row)
