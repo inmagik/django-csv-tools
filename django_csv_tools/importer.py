@@ -64,6 +64,8 @@ class Importer(object):
                 out["rows_status"]["errors"].append([i, row, row_errors, False])
                 continue
 
+            inner_sid = transaction.savepoint()
+
             try:
                 hint = hints.get(i)
                 if hint == False:
@@ -111,6 +113,7 @@ class Importer(object):
                     raise e
                 else:
                     transaction.set_rollback(False)
+                    transaction.savepoint_rollback(inner_sid)
 
         if commit:
             transaction.savepoint_commit(sid)
@@ -127,9 +130,10 @@ class Importer(object):
 
         elif type(mapped_field) == list and len(mapped_field)  == 2:
             if row[mapped_field[0]] == "":
-                if getattr(mapped_field[1], "__call__"):
+                try:
                     return mapped_field[1](row)
-                return mapped_field[1]
+                except:
+                    return mapped_field[1]
             return row[mapped_field[0]]
 
         elif type(mapped_field) == RelatedImport:

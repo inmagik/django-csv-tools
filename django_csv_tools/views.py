@@ -50,10 +50,13 @@ class BaseImportProcessView(TemplateView):
     template_context = {}
     #template_name = 'ui/base_import_process.html'
 
+    def get_import_url(self):
+        return self.import_url
+
     def get_context_data(self, *args, **kwargs):
         context = super(BaseImportProcessView, self).get_context_data(*args, **kwargs)
         context.update(self.template_context)
-        context['import_url'] = self.import_url
+        context['import_url'] = self.get_import_url()
         return context
 
     def get_session_prefix(self):
@@ -65,12 +68,16 @@ class BaseImportProcessView(TemplateView):
 
     def dispatch(self, request, *args, **kwargs):
         if not request.session.get(self.get_session_var('rows')):
-            return redirect(self.import_url)
+            return redirect(self.get_import_url())
         return super(BaseImportProcessView, self).dispatch(request, *args, **kwargs)
+
+    def get_fixed_values(self, request):
+        fixed_values = request.session.get(self.get_session_var('fixed_values'))
+        return fixed_values
 
     def get(self, request, *args, **kwargs):
         rows = request.session.get(self.get_session_var('rows'))
-        fixed_values = request.session.get(self.get_session_var('fixed_values'))
+        fixed_values = self.get_fixed_values(request)
 
         importer = self.importer_class()
         results = importer.import_rows(rows, fixed_values=fixed_values, commit=False)
