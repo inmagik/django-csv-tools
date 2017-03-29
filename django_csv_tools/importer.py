@@ -33,6 +33,7 @@ class Importer(object):
 
     @transaction.atomic
     def import_rows(self, rows=[], fixed_values={}, commit=False, hints={}):
+        print ("fixed_values", fixed_values)
         out = {
             "rows" : rows,
             "rows_status" : {
@@ -44,8 +45,10 @@ class Importer(object):
         }
 
         sid = transaction.savepoint()
-
         for i, row in enumerate(rows):
+            if str(i) in hints and hints[str(i)] == 'skip':
+                print ("skipping", i)
+                continue
             model_args = {}
             row_errors = {}
 
@@ -72,9 +75,14 @@ class Importer(object):
                     continue
 
                 if self.natural_keys:
-                    lookup_args = {x:model_args[x] for x in self.natural_keys}
+                    try:
+                        lookup_args = {x:model_args[x] for x in self.natural_keys}
+                    except Exception as e:
+                        print(model_args, x)
+                        raise e
                     existing_instances = self.model.objects.filter(**lookup_args)
                     if existing_instances.exists():
+                        existing_instances = list(existing_instances)
                         out["rows_status"]["exiting"].append([i, row, existing_instances])
 
 

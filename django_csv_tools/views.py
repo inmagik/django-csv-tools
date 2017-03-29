@@ -78,23 +78,31 @@ class BaseImportProcessView(TemplateView):
     def get(self, request, *args, **kwargs):
         rows = request.session.get(self.get_session_var('rows'))
         fixed_values = self.get_fixed_values(request)
-
+        hints = request.session.get(self.get_session_var('hints'), {})
         importer = self.importer_class()
-        results = importer.import_rows(rows, fixed_values=fixed_values, commit=False)
+        results = importer.import_rows(rows, fixed_values=fixed_values, commit=False, hints=hints)
         context = self.get_context_data()
         context["results"] = results
         return self.render_to_response(context)
 
     def post(self, request, *args, **kwargs):
         rows = request.session.get(self.get_session_var('rows'))
-        fixed_values = request.session.get(self.get_session_var('fixed_values'))
+        skip_lines = request.POST.getlist('skip_lines')
+        session_hints = request.session.get(self.get_session_var('hints'), {})
+        hints = { x : 'skip' for x in skip_lines }
+        hints.update(session_hints)
+        self.request.session[self.get_session_var('hints')] = hints
+        fixed_values = self.get_fixed_values(request)
         importer = self.importer_class()
         context = super(BaseImportProcessView, self).get_context_data()
         try:
-            results = importer.import_rows(rows, fixed_values=fixed_values, commit=True)
+            results = importer.import_rows(rows, fixed_values=fixed_values, commit=True, hints=hints)
             context["results"] = results
             context["import_success"] = True
             del request.session[self.get_session_var('rows')]
+            del request.session[self.get_session_var('hints')]
             return self.render_to_response(context)
-        except:
+        except Exception as e:
+            raise e
+            print(e)
             return redirect(self.request.path)
