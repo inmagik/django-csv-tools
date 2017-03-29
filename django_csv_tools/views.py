@@ -81,12 +81,19 @@ class BaseImportProcessView(TemplateView):
         hints = request.session.get(self.get_session_var('hints'), {})
         importer = self.importer_class()
         results = importer.import_rows(rows, fixed_values=fixed_values, commit=False, hints=hints)
+        self.request.session[self.get_session_var('rows_status')] = results['rows_status']
+
         context = self.get_context_data()
         context["results"] = results
+        context["hints"] = hints
         return self.render_to_response(context)
 
     def post(self, request, *args, **kwargs):
         rows = request.session.get(self.get_session_var('rows'))
+        rows_status = request.session.get(self.get_session_var('rows_status'))
+        has_errors = len(rows_status.get('errors', [])) > 0
+        commit = not has_errors
+
         skip_lines = request.POST.getlist('skip_lines')
         session_hints = request.session.get(self.get_session_var('hints'), {})
         hints = { x : 'skip' for x in skip_lines }
@@ -95,13 +102,21 @@ class BaseImportProcessView(TemplateView):
         fixed_values = self.get_fixed_values(request)
         importer = self.importer_class()
         context = super(BaseImportProcessView, self).get_context_data()
+        #TODO: commit should be set to True only if we don't have errors from the previous round
         try:
-            results = importer.import_rows(rows, fixed_values=fixed_values, commit=True, hints=hints)
+            results = importer.import_rows(rows, fixed_values=fixed_values, commit=commit, hints=hints)
             context["results"] = results
+            context["hints"] = hints
             context["import_success"] = True
-            del request.session[self.get_session_var('rows')]
-            del request.session[self.get_session_var('hints')]
-            return self.render_to_response(context)
+            if commit:
+                del request.session[self.get_session_var('rows')]
+                del request.session[self.get_session_var('hints')]
+                del request.session[self.get_session_var('rows_status')]
+                return self.render_to_response(context)
+            else:
+                self.request.session[self.get_session_var('rows_status')] = results['rows_status']
+                return redirect(self.request.path)
+
         except Exception as e:
             raise e
             print(e)
