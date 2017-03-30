@@ -32,6 +32,10 @@ class BaseImportView(FormView):
         return "%s_%s" % (self.get_session_prefix(), varname)
 
     def form_valid(self, form):
+
+        del self.request.session[self.get_session_var('hints')]
+        del self.request.session[self.get_session_var('rows_status')]
+
         importer = self.importer_class()
         csv_file = form.cleaned_data.get('csv_file')
         stream = TextIOWrapper(csv_file.file, encoding=self.request.encoding)
@@ -91,33 +95,35 @@ class BaseImportProcessView(TemplateView):
     def post(self, request, *args, **kwargs):
         rows = request.session.get(self.get_session_var('rows'))
         rows_status = request.session.get(self.get_session_var('rows_status'))
-        has_errors = len(rows_status.get('errors', [])) > 0
-        commit = not has_errors
 
         skip_lines = request.POST.getlist('skip_lines')
-        session_hints = request.session.get(self.get_session_var('hints'), {})
-        hints = { x : 'skip' for x in skip_lines }
-        hints.update(session_hints)
+        hints = request.session.get(self.get_session_var('hints'), {})
+        new_hints = { x : 'skip' for x in skip_lines }
+
+        for key in request.POST:
+            if key.startswith("hints_"):
+                value = request.POST[key]
+                line_no = key.replace("hints_", "")
+                new_hints[line_no] = value
+
+        hints.update(new_hints)
+
+
         self.request.session[self.get_session_var('hints')] = hints
         fixed_values = self.get_fixed_values(request)
         importer = self.importer_class()
         context = super(BaseImportProcessView, self).get_context_data()
         #TODO: commit should be set to True only if we don't have errors from the previous round
         try:
-            results = importer.import_rows(rows, fixed_values=fixed_values, commit=commit, hints=hints)
+            results = importer.import_rows(rows, fixed_values=fixed_values, commit=True, hints=hints)
             context["results"] = results
             context["hints"] = hints
             context["import_success"] = True
-            if commit:
-                del request.session[self.get_session_var('rows')]
-                del request.session[self.get_session_var('hints')]
-                del request.session[self.get_session_var('rows_status')]
-                return self.render_to_response(context)
-            else:
-                self.request.session[self.get_session_var('rows_status')] = results['rows_status']
-                return redirect(self.request.path)
+
+            del request.session[self.get_session_var('rows')]
+            del request.session[self.get_session_var('hints')]
+            del request.session[self.get_session_var('rows_status')]
+            return self.render_to_response(context)
 
         except Exception as e:
-            raise e
-            print(e)
             return redirect(self.request.path)

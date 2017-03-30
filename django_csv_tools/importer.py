@@ -69,15 +69,11 @@ class Importer(object):
 
             try:
                 hint = hints.get(str(i))
-                if hint == False:
+                if hint == 'skip':
                     continue
 
                 if self.natural_keys:
-                    try:
-                        lookup_args = {x:model_args[x] for x in self.natural_keys}
-                    except Exception as e:
-                        print(model_args, x)
-                        raise e
+                    lookup_args = {x:model_args[x] for x in self.natural_keys}
                     existing_instances = self.model.objects.filter(**lookup_args)
                     if existing_instances.exists():
                         existing_instances = list(existing_instances)
@@ -94,7 +90,7 @@ class Importer(object):
                 instance_args = { x:model_args[x] for x in model_args if x not in m2m_attrs }
 
 
-                if hint == None:
+                if not hint or hint== 'new':
                     instance = self.model(**instance_args)
                     instance._from_import = True
                     instance.save()
@@ -103,7 +99,7 @@ class Importer(object):
                         m2m_manager.add(model_args[attr])
                     out["rows_status"]["new"].append(i)
                 else:
-                    instance = self.model.get(pk=hint)
+                    instance = self.model.objects.get(pk=hint)
                     for attr in instance_args:
                         setattr(instance, attr, instance_args[attr])
                     instance.save()
