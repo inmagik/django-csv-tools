@@ -33,8 +33,14 @@ class BaseImportView(FormView):
 
     def form_valid(self, form):
 
-        del self.request.session[self.get_session_var('hints')]
-        del self.request.session[self.get_session_var('rows_status')]
+        try:
+            del self.request.session[self.get_session_var('hints')]
+        except:
+            pass
+        try:
+            del self.request.session[self.get_session_var('rows_status')]
+        except:
+            pass
 
         importer = self.importer_class()
         csv_file = form.cleaned_data.get('csv_file')
