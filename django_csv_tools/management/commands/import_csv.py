@@ -27,7 +27,7 @@ class Command(BaseCommand):
             result = importer.import_rows(rows, skip_all=options["skip"])
         else:
             for subset in chunks(rows, 1000):
-                importer.import_rows(subset,  new_all=True, commit=True)
+                importer.import_rows(subset,  new_all=True, commit=True, skip_all=options["skip"])
 
 
 
