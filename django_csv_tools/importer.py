@@ -57,7 +57,7 @@ class Importer(object):
                     arg = self.get_field_value(row, self.fields_map[x])
                     model_args[x] = arg
                 except Exception as e:
-                    if commit and not skip_errors:
+                    if commit:
                         raise e
                     row_errors[x] = e
 
