@@ -32,7 +32,7 @@ class Importer(object):
         return rows
 
     @transaction.atomic
-    def import_rows(self, rows=[], fixed_values={}, commit=False, hints={}):
+    def import_rows(self, rows=[], fixed_values={}, commit=False, hints={}, skip_all=False, new_all=False):
         out = {
             "rows" : rows,
             "rows_status" : {
@@ -45,7 +45,9 @@ class Importer(object):
 
         sid = transaction.savepoint()
         for i, row in enumerate(rows):
-            if str(i) in hints and hints[str(i)] == 'skip':
+            print("...", i)
+
+            if str(i) in hints and hints[str(i)] == 'skip' or skip_all:
                 continue
             model_args = {}
             row_errors = {}
@@ -55,7 +57,7 @@ class Importer(object):
                     arg = self.get_field_value(row, self.fields_map[x])
                     model_args[x] = arg
                 except Exception as e:
-                    if commit:
+                    if commit and not skip_errors:
                         raise e
                     row_errors[x] = e
 
@@ -69,7 +71,7 @@ class Importer(object):
 
             try:
                 hint = hints.get(str(i))
-                if hint == 'skip':
+                if hint == 'skip' or skip_all:
                     continue
 
                 if self.natural_keys:
@@ -90,7 +92,7 @@ class Importer(object):
                 instance_args = { x:model_args[x] for x in model_args if x not in m2m_attrs }
 
 
-                if not hint or hint== 'new':
+                if not hint or hint== 'new' or new_all:
                     instance = self.model(**instance_args)
                     instance._from_import = True
                     instance.save()
