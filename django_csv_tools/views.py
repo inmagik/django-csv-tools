@@ -44,7 +44,8 @@ class BaseImportView(FormView):
 
         importer = self.importer_class()
         csv_file = form.cleaned_data.get('csv_file')
-        stream = TextIOWrapper(csv_file.file, encoding=self.request.encoding)
+        #stream = TextIOWrapper(csv_file.file, encoding=self.request.encoding)
+        stream = TextIOWrapper(csv_file.file, encoding="utf-8")
         rows = importer.get_rows_from_stream(stream)
         self.request.session[self.get_session_var('rows')] = rows
         self.request.session[self.get_session_var('fixed_values')] = self.get_fixed_values(form)
