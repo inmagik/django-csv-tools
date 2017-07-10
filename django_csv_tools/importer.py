@@ -45,7 +45,7 @@ class Importer(object):
 
         sid = transaction.savepoint()
         for i, row in enumerate(rows):
-            print("...", i)
+            #print("...", i)
 
             if str(i) in hints and hints[str(i)] == 'skip' or skip_all:
                 continue
